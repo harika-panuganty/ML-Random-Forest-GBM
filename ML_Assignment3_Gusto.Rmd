@@ -1,0 +1,94 @@
+---
+title: "ML_Assignment3_Gusto"
+author: "Harika Panuganty"
+date: "7/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+rm(list=ls())
+library(caret)
+library(pROC)
+library(gbm)
+
+
+```
+
+```{r}
+
+#Section 2: Gusto study
+
+#Using the training datasets, create the following models:
+
+#Random Forest model: This model utilizes all features to predict 30-day mortality using a random forest.
+
+gusto_train.rf <- read.csv("~/Desktop/datasets/gusto_train.csv")
+gusto_test.rf <- read.csv("~/Desktop/datasets/gusto_test.csv")
+gusto_train.rf$DAY30 <- as.factor(gusto_train.rf$DAY30)
+
+set.seed(456)
+g_mtry <- round(sqrt(ncol(gusto_train.rf)))
+g_mtry_grid <- seq(g_mtry-2, g_mtry+2, by = 1)
+g_objGrid <- expand.grid(.mtry = g_mtry_grid)
+fitControl <- trainControl(method = "cv", number = 5)
+
+g.rf.model <- train(DAY30 ~ . , data = gusto_train.rf, method = "rf", tuneGrid = g_objGrid, ntree = 500, trControl = fitControl) 
+
+print(g.rf.model)
+
+#performance on test dataset 
+g.rf.preds <- predict(object = g.rf.model, gusto_test.rf, type = "prob")
+gusto_test.rf$predicted_DAY30 <- g.rf.preds$`1` #`1` is outcome we're looking for 
+
+g.rf_perf <- roc(response = gusto_test.rf$DAY30, predictor = gusto_test.rf$predicted_DAY30)
+
+print(pROC::auc(g.rf_perf))
+print(pROC::ci.auc(g.rf_perf))
+
+```
+
+```{r}
+
+#Section 2: Gusto study
+#Using the training datasets, create the following models:
+
+#GBM model: This model utilizes all features to predict 30-day mortality using a gradient boosted machine.
+
+gusto_train.g <- read.csv("~/Desktop/datasets/gusto_train.csv")
+gusto_test.g <- read.csv("~/Desktop/datasets/gusto_test.csv")
+gusto_train.g$DAY30 <- as.factor(gusto_train.g$DAY30)
+
+set.seed(456)
+g.n.trees <- c(20, 50) #no of trees
+g_lr <- c(0.01, 0.05) #learning rate/shrinkage
+g_int_depth <- c(2, 3, 5) #max no splits per tree 
+g_min_obs <- c(10) #min obs for tree to stop growing 
+
+gb_objGrid <- expand.grid(interaction.depth = g_int_depth, n.trees = g.n.trees, shrinkage = g_lr, n.minobsinnode = g_min_obs)
+fitControl <- trainControl(method = "cv", number = 5)
+
+g.gbm.model <- train(DAY30 ~ ., data = gusto_train.g, method = "gbm", tuneGrid = gb_objGrid, trControl = fitControl)
+
+print(g.gbm.model)
+
+preds <- predict(object = g.gbm.model, gusto_test.g, type = "prob")
+gusto_test.g$predicted_DAY30<- preds$`1`
+
+gbm_perf <- roc(response = gusto_test.g$DAY30, 
+                predictor = gusto_test.g$predicted_DAY30)
+print(pROC::auc(gbm_perf))
+print(pROC::ci.auc(gbm_perf))
+
+```
+

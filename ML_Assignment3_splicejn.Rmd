@@ -1,0 +1,317 @@
+---
+title: "ML_Assignment3_splicejn"
+author: "Harika Panuganty"
+date: "7/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+rm(list=ls())
+library(caret)
+library(pROC)
+library(gbm)
+library(plyr)
+library(dplyr)
+
+
+```
+
+
+```{r}
+
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#Random Forest model: This model utilizes all features to predict splice-junction type using a random forest.
+
+#a) EI vs non-EI
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.rf <- d.test.features
+splice_train.rf <- d.train.features
+
+splice_train.rf %>% mutate(class = ifelse(class == "EI", "EI", "Non-EI")) -> splice_train.rf
+splice_test.rf %>% mutate(class = ifelse(class == "EI", "EI", "Non-EI")) -> splice_test.rf
+
+splice_train.rf$class <- as.factor(splice_train.rf$class)
+splice_test.rf$class <- as.factor(splice_test.rf$class)
+
+set.seed(456)
+splice_mtry <- round(sqrt(ncol(splice_train.rf)))
+splice_mtry_grid <- seq(splice_mtry-2, splice_mtry +2, by = 1)
+splice_objGrid <- expand.grid(.mtry = splice_mtry_grid)
+fitControl <- trainControl(method = "cv", number= 5)
+
+splice.rf.model <- train(class ~ . , data = splice_train.rf, method = "rf", tuneGrid = splice_objGrid, ntree = 500, trControl = fitControl) 
+
+print(splice.rf.model)
+
+#performance on test dataset
+splice_preds <- predict(object = splice.rf.model, splice_test.rf, type = "prob")
+splice_test.rf$predicted_class_rf <- splice_preds$EI
+
+splice_rf_perf <- roc(response = splice_test.rf$class, 
+                predictor = splice_test.rf$predicted_class_rf)
+
+print(pROC::auc(splice_rf_perf))
+print(pROC::ci.auc(splice_rf_perf))
+
+
+```
+
+```{r}
+
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#GBM model: This model utilizes all features to predict splice-junction type using a gradient boosted machine.
+
+#a) EI vs non-EI
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.gbm <- d.test.features
+splice_train.gbm <- d.train.features
+
+splice_train.gbm %>% mutate(class = ifelse(class == "EI", "EI", "Non-EI")) -> splice_train.gbm
+splice_test.gbm %>% mutate(class = ifelse(class == "EI", "EI", "Non-EI")) -> splice_test.gbm
+
+splice_train.gbm$class <- as.factor(splice_train.gbm$class)
+splice_test.gbm$class <- as.factor(splice_test.gbm$class)
+
+set.seed(456)
+g_n.trees <- c(20, 50)  # number of trees
+g_lr <- c(0.01, 0.05) # learning rate or shrinkage
+g_interaction_depth <- c(2, 3, 5) # max number of splits per tree
+g_min_obs <- c(10) # min observations for tree to stop growing
+
+objGrid <- expand.grid(interaction.depth = g_interaction_depth, 
+                       n.trees = g_n.trees, 
+                       shrinkage = g_lr, 
+                       n.minobsinnode = g_min_obs)
+fitControl <- trainControl(method = "cv", number= 5)
+
+gbm.model <- train(class ~ ., data  = splice_train.gbm, method = "gbm", tuneGrid = objGrid, trControl = fitControl)
+
+print(gbm.model)
+
+preds <- predict(object = gbm.model, splice_test.gbm, type = "prob")
+splice_test.gbm$predicted_class_gbm<- preds$EI
+
+gbm_perf <- roc(response = splice_test.gbm$class, 
+                predictor = splice_test.gbm$predicted_class_gbm)
+
+print(pROC::auc(gbm_perf))
+print(pROC::ci.auc(gbm_perf))
+
+
+
+```
+
+```{r}
+
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#Random Forest model: This model utilizes all features to predict splice-junction type using a random forest.
+
+#b) IE vs non-IE
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.rf.ie <- d.test.features
+splice_train.rf.ie <- d.train.features
+
+splice_train.rf.ie %>% mutate(class = ifelse(class == "IE", "IE", "Non-IE")) -> splice_train.rf.ie
+splice_test.rf.ie %>% mutate(class = ifelse(class == "IE", "IE", "Non-IE")) -> splice_test.rf.ie
+
+splice_train.rf.ie$class <- as.factor(splice_train.rf.ie$class)
+splice_test.rf.ie$class <- as.factor(splice_test.rf.ie$class)
+
+set.seed(456)
+ie.splice_mtry <- round(sqrt(ncol(splice_train.rf.ie)))
+ie.splice_mtry_grid <- seq(ie.splice_mtry-2, ie.splice_mtry +2, by = 1)
+ie.splice_objGrid <- expand.grid(.mtry = ie.splice_mtry_grid)
+fitControl <- trainControl(method = "cv", number= 5)
+
+ie.splice.rf.model <- train(class ~ . , data = splice_train.rf.ie, method = "rf", tuneGrid = ie.splice_objGrid, ntree = 500, trControl = fitControl) 
+
+print(ie.splice.rf.model)
+
+#performance on test dataset
+ie.splice_preds <- predict(object = ie.splice.rf.model, splice_test.rf.ie, type = "prob")
+splice_test.rf.ie$predicted_class_rf.ie <- ie.splice_preds$IE
+
+ie.splice_rf_perf <- roc(response = splice_test.rf.ie$class, 
+                predictor = splice_test.rf.ie$predicted_class_rf.ie)
+
+print(pROC::auc(ie.splice_rf_perf))
+print(pROC::ci.auc(ie.splice_rf_perf))
+
+
+
+```
+
+```{r}
+
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#GBM model: This model utilizes all features to predict splice-junction type using a gradient boosted machine.
+
+#b) IE vs non-IE
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.gbm.ie <- d.test.features
+splice_train.gbm.ie <- d.train.features
+
+splice_train.gbm.ie %>% mutate(class = ifelse(class == "IE", "IE", "Non-IE")) -> splice_train.gbm.ie
+splice_test.gbm.ie %>% mutate(class = ifelse(class == "IE", "IE", "Non-IE")) -> splice_test.gbm.ie
+
+splice_train.gbm.ie$class <- as.factor(splice_train.gbm.ie$class)
+splice_test.gbm.ie$class <- as.factor(splice_test.gbm.ie$class)
+
+set.seed(456)
+ie_n.trees <- c(20, 50)  # number of trees
+ie_lr <- c(0.01, 0.05) # learning rate or shrinkage
+ie_interaction_depth <- c(2, 3, 5) # max number of splits per tree
+ie_min_obs <- c(10) # min observations for tree to stop growing
+
+ie.objGrid <- expand.grid(interaction.depth = ie_interaction_depth, 
+                       n.trees = ie_n.trees, 
+                       shrinkage = ie_lr, 
+                       n.minobsinnode = ie_min_obs)
+fitControl <- trainControl(method = "cv", number= 5)
+
+ie.gbm.model <- train(class ~ ., data  = splice_train.gbm.ie, method = "gbm", tuneGrid = ie.objGrid, trControl = fitControl)
+
+print(ie.gbm.model)
+
+preds.ie <- predict(object = ie.gbm.model, splice_test.gbm.ie, type = "prob")
+splice_test.gbm.ie$predicted_class_gbm.ie<- preds.ie$IE
+
+gbm_perf.ie <- roc(response = splice_test.gbm.ie$class, 
+                predictor = splice_test.gbm.ie$predicted_class_gbm.ie)
+
+print(pROC::auc(gbm_perf.ie))
+print(pROC::ci.auc(gbm_perf.ie))
+
+
+```
+
+```{r}
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#Random Forest model: This model utilizes all features to predict splice-junction type using a random forest.
+
+#c) EI/IE vs non-IE-EI
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.rf.n <- d.test.features
+splice_train.rf.n <- d.train.features
+
+splice_train.rf.n %>% mutate(class = ifelse(class == "IE", "EI", ifelse(class == "EI","EI", "Non-IE-EI"))) -> splice_train.rf.n
+splice_test.rf.n %>% mutate(class = ifelse(class == "IE", "EI", ifelse(class == "EI","EI", "Non-IE-EI"))) -> splice_test.rf.n
+
+splice_train.rf.n$class <- as.factor(splice_train.rf.n$class)
+splice_test.rf.n$class <- as.factor(splice_test.rf.n$class)
+
+set.seed(456)
+n.splice_mtry <- round(sqrt(ncol(splice_train.rf.n)))
+n.splice_mtry_grid <- seq(n.splice_mtry-2, n.splice_mtry +2, by = 1)
+n.splice_objGrid <- expand.grid(.mtry = n.splice_mtry_grid)
+fitControl <- trainControl(method = "cv", number= 5)
+
+n.splice.rf.model <- train(class ~ . , data = splice_train.rf.n, method = "rf", tuneGrid = n.splice_objGrid, ntree = 500, trControl = fitControl) 
+
+print(n.splice.rf.model)
+
+#performance on test dataset
+n.splice_preds <- predict(object = n.splice.rf.model, splice_test.rf.n, type = "prob")
+splice_test.rf.n$predicted_class_rf.n <- n.splice_preds$EI
+
+n.splice_rf_perf <- roc(response = splice_test.rf.n$class, 
+                predictor = splice_test.rf.n$predicted_class_rf.n)
+
+print(pROC::auc(n.splice_rf_perf))
+print(pROC::ci.auc(n.splice_rf_perf))
+
+
+
+```
+
+```{r}
+
+#Section 3: Splice Junction
+
+#Using the training datasets, create the following models:
+
+#GBM model: This model utilizes all features to predict splice-junction type using a gradient boosted machine.
+
+#c) EI/IE vs non-IE-EI
+
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_test_data.Rdata")
+load("/Users/harikapanuganty/Desktop/datasets/splicejn_train_data.Rdata")
+
+splice_test.gbm.n <- d.test.features
+splice_train.gbm.n <- d.train.features
+
+splice_train.gbm.n %>% mutate(class = ifelse(class == "IE", "EI", ifelse(class == "EI","EI", "Non-IE-EI"))) -> splice_train.gbm.n
+splice_test.gbm.n %>% mutate(class = ifelse(class == "IE", "EI", ifelse(class == "EI","EI", "Non-IE-EI"))) -> splice_test.gbm.n
+
+splice_train.gbm.n$class <- as.factor(splice_train.gbm.n$class)
+splice_test.gbm.n$class <- as.factor(splice_test.gbm.n$class)
+
+set.seed(456)
+n_n.trees <- c(20, 50)  # number of trees
+n_lr <- c(0.01, 0.05) # learning rate or shrinkage
+n_interaction_depth <- c(2, 3, 5) # max number of splits per tree
+n_min_obs <- c(10) # min observations for tree to stop growing
+
+n.objGrid <- expand.grid(interaction.depth = n_interaction_depth, 
+                       n.trees = n_n.trees, 
+                       shrinkage = n_lr, 
+                       n.minobsinnode = n_min_obs)
+fitControl <- trainControl(method = "cv", number= 5)
+
+n.gbm.model <- train(class ~ ., data  = splice_train.gbm.n, method = "gbm", tuneGrid = n.objGrid, trControl = fitControl)
+
+print(n.gbm.model)
+
+preds.n <- predict(object = n.gbm.model, splice_test.gbm.n, type = "prob")
+splice_test.gbm.n$predicted_class_gbm.n<- preds.n$EI
+
+gbm_perf.n <- roc(response = splice_test.gbm.n$class, 
+                predictor = splice_test.gbm.n$predicted_class_gbm.n)
+
+print(pROC::auc(gbm_perf.n))
+print(pROC::ci.auc(gbm_perf.n))
+
+
+
+```
+

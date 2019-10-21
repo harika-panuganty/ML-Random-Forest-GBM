@@ -1,0 +1,112 @@
+---
+title: "ML_Assignment3"
+author: "Harika Panuganty"
+date: "7/19/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+rm(list=ls())
+library(caret)
+library(pROC)
+#library(plyr)
+#library(dplyr)
+#library(e1071)
+library(gbm)
+
+
+```
+
+
+```{r}
+#Section 1: EMR Bots 30-day Readmission study
+
+#Using the training datasets, create the following models:
+
+#1. Random Forest Model
+
+readmission_train.rf <- read.csv("~/Desktop/datasets/readmission_train_new.csv")
+
+readmission_test.rf <- read.csv("~/Desktop/datasets/readmission_test.csv")
+
+#pre-processing to change outcome variable into levels
+#predicing outcome 1=readmitted, 0=not readmitted
+readmission_train.rf$outcome <- as.factor(readmission_train.rf$outcome)
+#levels(readmission_train$outcome) <- c("No", "Yes")
+
+#setting parameters for RF model
+set.seed(456)
+p_mtry <- round(sqrt(ncol(readmission_train.rf)))
+mtry_grid <- seq(p_mtry-2, p_mtry +2, by = 1)
+objGrid <- expand.grid(.mtry = mtry_grid)
+fitControl <- trainControl(method = "cv", number = 5) #5-fold cross-validation
+
+readmission.rf.model <- train(outcome ~ PatientGender + PatientRace + PatientEncounterAge +
+CBC..ABSOLUTE.LYMPHOCYTES + CBC..ABSOLUTE.NEUTROPHILS + CBC..BASOPHILS + CBC..EOSINOPHILS + CBC..HEMATOCRIT + CBC..HEMOGLOBIN + CBC..PLATELET.COUNT + CBC..RED.BLOOD.CELL.COUNT + CBC..WHITE.BLOOD.CELL.COUNT + METABOLIC..ALBUMIN + METABOLIC..BILI.TOTAL + METABOLIC..BUN + METABOLIC..CALCIUM + METABOLIC..CREATININE + METABOLIC..POTASSIUM + METABOLIC..SODIUM , data = readmission_train.rf, method = "rf", tuneGrid = objGrid, ntree = 500, trControl = fitControl)
+
+print(readmission.rf.model)
+
+readmission_preds <- predict(object = readmission.rf.model, readmission_test.rf, type = "prob")
+readmission_test.rf$predicted_outcome_rf <- readmission_preds$`1`
+
+readmission_rf_perf <- roc(response = readmission_test.rf$outcome, 
+                predictor = readmission_test.rf$predicted_outcome_rf)
+
+print(pROC::auc(readmission_rf_perf))
+print(pROC::ci.auc(readmission_rf_perf))
+
+
+```
+
+
+```{r}
+
+#Section 1: EMR Bots 30-day Readmission study
+
+#Using the training datasets, create the following models:
+
+#1. GBM Model
+
+readmission_train.g <- read.csv("~/Desktop/datasets/readmission_train_new.csv")
+readmission_test.g <- read.csv("~/Desktop/datasets/readmission_test.csv")
+readmission_train.g$outcome <- as.factor(readmission_train.g$outcome)
+
+set.seed(456)
+r.n.trees <- c(20, 50) #no of trees
+r_lr <- c(0.01, 0.05) #learning rate/shrinkage
+r_int_depth <- c(2, 3, 5) #max no splits per tree 
+r_min_obs <- c(10) #min obs for tree to stop growing 
+
+readmission_objGrid <- expand.grid(interaction.depth = r_int_depth, n.trees = r.n.trees, shrinkage = r_lr, n.minobsinnode = r_min_obs)
+fitControl <- trainControl(method = "cv", number = 5)
+
+readmission.gbm.model <- train(outcome ~ PatientGender + PatientRace + PatientEncounterAge +
+CBC..ABSOLUTE.LYMPHOCYTES + CBC..ABSOLUTE.NEUTROPHILS + CBC..BASOPHILS + CBC..EOSINOPHILS + CBC..HEMATOCRIT + CBC..HEMOGLOBIN + CBC..PLATELET.COUNT + CBC..RED.BLOOD.CELL.COUNT + CBC..WHITE.BLOOD.CELL.COUNT + METABOLIC..ALBUMIN + METABOLIC..BILI.TOTAL + METABOLIC..BUN + METABOLIC..CALCIUM + METABOLIC..CREATININE + METABOLIC..POTASSIUM + METABOLIC..SODIUM, data = readmission_train.g, method = "gbm", tuneGrid = readmission_objGrid, trControl = fitControl)
+
+print(readmission.gbm.model)
+
+preds.readmission <- predict(object = readmission.gbm.model, readmission_test.g, type = "prob")
+readmission_test.g$predicted_outcome_g<- preds.readmission$`1`
+
+readmission_gbm_perf <- roc(response = readmission_test.g$outcome, 
+                predictor = readmission_test.g$predicted_outcome_g)
+
+print(pROC::auc(readmission_gbm_perf))
+print(pROC::ci.auc(readmission_gbm_perf))
+
+
+```
+
+
+
